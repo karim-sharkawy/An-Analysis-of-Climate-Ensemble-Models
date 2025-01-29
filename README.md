@@ -29,7 +29,6 @@ def fill_missing_values(df, exclude_cols, window_size=10):
 
     return df_filled
 ```
-- 
 - Replaced specific character codes (`'T'` for trace precipitation, `'M'` for missing values) with meaningful values or NaN (shown below).
 
 ```python
