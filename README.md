@@ -88,5 +88,16 @@ To compare both models, I visualized:
 3) Pandas 2.2.0
 4) Scikit-learn 1.3.2
 5) TensorFlow 2.15.0
-6) Keras 2.15.0
-7) Matplotlib 3.7.1
+6) Matplotlib 3.7.1
+7) Google colab (make sure to change paths)
+
+Room for improvement:
+1. Parallelism and Distributed Training for Ensemble Models to handle intensive computation. Hence, we can:
+- RFs is inherently parallelizable because each tree in the forest is built independently. Use scikit-learn and XGBoost to take advantage of multi-core processors and train multiple trees in parallel.
+- For LSTMs, TensorFlow supports distributed training across multiple GPUs or machines, processing larger data in less time.
+
+2. Efficient Ensemble Methods
+- Ensemble models are quite large, we can use XGBoost and bagging methods to help with this
+
+3. Mini-batches for LSTMS
+- Instead of feeding the entire dataset into the model at once, break it down into batches. This allows the model to learn in smaller, more manageable chunks, reducing the memory load and making it easier to fit large datasets into memory.
