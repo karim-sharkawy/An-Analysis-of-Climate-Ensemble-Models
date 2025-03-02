@@ -1,14 +1,20 @@
-#### Overview: Comparing Random Forest and LSTM Models on West Lafayette Climate Data  
+#### Overview: Comparing Random Forest and LSTM Models on West Lafayette Climate Data
 
-I analyzed NOAA’s Local Climatological Data (LCD) for West Lafayette (2020–2024) to predict hourly wet bulb temperatures using Random Forest and LSTM models.
+Project Plan: West Lafayette, Indiana Weather Prediction Using Machine Learning with Consideration of Climate Change
 
-Building an ensemble model using a combination of Random Forest (RF) and Long Short-Term Memory (LSTM) networks is a powerful approach! Both algorithms bring unique strengths that, when combined, can enhance your model’s accuracy and generalizability, especially in complex tasks like climate modeling. Random Forest (RF) is particularly useful in handling large datasets and identifying important features, while LSTM is specialized in capturing temporal dependencies in sequential data. Together, they can tackle a wide range of challenges and improve performance in predictive modeling.
+A coding project which uses machine learning and data from decades of weather patterns of each day to determine yearly climate patterns while incorporating climate change indicators.
 
-RF contributes to the model by addressing feature importance, interpretability, and nonlinearity. It helps identify and prioritize the most important features in datasets, making it especially useful when there are many variables involved. RF is also effective in classification and regression tasks and can handle complex, nonlinear relationships between features. Additionally, RF models are generally easier to interpret than deep learning models, which can be an advantage when analyzing climate-related factors like humidity, wind speed, and pressure. Moreover, RF is adept at managing both categorical and continuous features without requiring extensive preprocessing.
+#### Goals
+1. **Primary Goal**: Develop a machine learning model to predict yearly climate patterns using historical weather data while accounting for climate change effects.
+2. **Secondary Goal**: Enhance the model's accuracy and robustness with advanced techniques and external climate data.
 
-On the other hand, LSTM networks excel at capturing temporal dependencies in sequential data. In the context of climate modeling, LSTM can learn and model the relationships between current and past weather conditions, making it ideal for time series data. LSTM networks are particularly strong at remembering long-term dependencies, which is important when dealing with seasonal patterns or long-term trends in climate. By recognizing complex temporal patterns, LSTM can effectively model phenomena like daily or seasonal temperature variations and long-term climate cycles, which are essential for accurate climate predictions.
+I analyzed NOAA’s Local Climatological Data (LCD) for West Lafayette (1973–2024) to predict temperatures using an ensemble of Random Forest Regression (RFR or RF) and Long-Short-Term Memory (LSTM) models.
 
-By combining RF and LSTM in an ensemble model, you get the best of both worlds. RF excels at identifying key features, handling nonlinearities, and providing interpretability, while LSTM captures essential temporal trends and dependencies in the data. Together, these models form a robust ensemble that can significantly improve the accuracy and generalization of climate predictions.
+Building an ensemble model using a combination of Random Forest (RF) and Long Short-Term Memory (LSTM) networks is a powerful and common approach for climate modeling. Both algorithms bring unique strengths that, when combined, can enhance a model’s accuracy and generalizability, giving you the best of both worlds:
+- RFRs address feature importance, interpretability, and nonlinearity. They identify and prioritize the most important features in datasets, making it especially useful when there are many variables involved. The regression in RFR means they can handle complex, nonlinear relationships between continuous features. Additionally, RF models are generally easier to interpret than deep learning models, which can be an advantage when analyzing climate-related factors like humidity, wind speed, and pressure (all of which are included in the data).
+- On the other hand, LSTM networks excel at capturing temporal dependencies in sequential data. In the context of climate modeling, LSTM can learn and model the relationships between current and past weather conditions, making it ideal for time series data. LSTM networks are particularly strong at remembering long-term dependencies, which is important when dealing with seasonal patterns or long-term trends in climate. By recognizing complex temporal patterns, LSTM can effectively model phenomena like daily or seasonal temperature variations and long-term climate cycles, which are essential for accurate climate predictions.
+
+Specifically, I am be using **Sequential Ensemble (Stacking with Time Series)**. My plan is as follows: first use the RF model to capture the most important features or perform initial preprocessing and feature selection, then pass the output of the RF model as input to the LSTM for time-dependent predictions. This hybrid approach would allow me to combine the RF’s ability to handle features with the LSTM’s ability to capture temporal dependencies.
 
 ### Steps and Code Highlights  
 
@@ -83,13 +89,13 @@ To compare both models, I visualized:
 - LSTM struggled to leverage its temporal advantages, likely due to the dataset’s limited variability and size.
 
 # Dependencies
-1) Python 3.10.12
-2) NumPy 1.26.4
-3) Pandas 2.2.0
-4) Scikit-learn 1.3.2
-5) TensorFlow 2.15.0
-6) Matplotlib 3.7.1
-7) Google colab (make sure to change paths)
+I used Python 3.10.12 on Google Colab. Note that you must change your paths, even when using Google Colab, so they may work on your set up 
+1) NumPy 1.26.4
+2) Pandas 2.2.0
+3) Scikit-learn 1.3.2
+4) TensorFlow/Keras 2.15.0
+5) Matplotlib 3.7.1
+6) Joblib 1.4.2
 
 Room for improvement:
 1. Parallelism and Distributed Training for Ensemble Models to handle intensive computation. Hence, we can:
@@ -101,3 +107,13 @@ Room for improvement:
 
 3. Mini-batches for LSTMS
 - Instead of feeding the entire dataset into the model at once, break it down into batches. This allows the model to learn in smaller, more manageable chunks, reducing the memory load and making it easier to fit large datasets into memory.
+
+4. Temporal & Spatial Analysis: Detect seasonal patterns and long-term climate trends.  
+   - Apply moving averages and Fourier transforms to extract seasonal effects.
+
+5. Advanced Enhancements: Make the project more dynamic and applicable to real-world scenarios.  
+1. **Automated Data Pipeline**  
+   - Develop a pipeline to **continuously update the model with new data** from NOAA.  
+2. **Incorporate Climate Change Factors**  
+   - Integrate climate change data (CO₂ levels, temperature anomalies) into the model.  
+   - Ensure seamless integration with existing weather data.
