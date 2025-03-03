@@ -1,6 +1,6 @@
-### Notes for each file (in order)
+# Description of each script (in order)
 
-#### 1) data_cleaning.py 
+### 1) data_cleaning.py 
 The dataset required careful preprocessing to handle missing and non-numeric values. I:
 - Dropped irrelevant columns based on a threshold of non-null values.
 - Filled missing values using a *window-based mean* approach to preserve temporal relationships in the time series. This is detailed in the comments.
@@ -67,19 +67,13 @@ model_lstm.fit(train_generator, epochs=10, validation_data=test_generator)
 
 ### 4) ensemble_&_evaluation.py
 
+This script builds an ensemble model by combining predictions from the RF and LSTM models using weighted averaging and meta-model stacking (linear regression). It evaluates model performance by comparing RMSE scores against a baseline model and determining which approach yields the most accurate predictions. The script leverages `joblib` to load the trained RF model and `tensorflow.keras.models` to load the LSTM model, ensuring seamless integration of both components. Additionally, `sklearn.metrics` is used to compute RMSE, helping quantify improvements over baseline predictions.  
 
-
-
-
-
-
-
-To compare both models, I visualized:  
-- MSE loss: Random Forest outperformed LSTM with significantly lower errors.
-- Computation time: LSTM was slower due to its sequential architecture.
+To enhance interpretability, the script includes multiple visualizations using `matplotlib` and `shap`. A feature importance comparison between RF’s built-in rankings and SHAP values provides insights into how each model makes decisions. A line plot of RMSE improvements highlights the effectiveness of different models, while actual vs. predicted scatter plots reveal potential biases or inconsistencies. These evaluations and visualizations ensure a comprehensive understanding of model performance before final deployment.
 
 
 ### 5) prediction_model.py
+In progress.
 
 ### Room for improvement:
 1. Parallelism and Distributed Training for Ensemble Models to handle intensive computation. Hence, we can:
