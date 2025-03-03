@@ -1,6 +1,6 @@
 ### Notes for each file (in order)
 
-#### data_cleaning.py 
+#### 1) data_cleaning.py 
 The dataset required careful preprocessing to handle missing and non-numeric values. I:
 - Dropped irrelevant columns based on a threshold of non-null values.
 - Filled missing values using a *window-based mean* approach to preserve temporal relationships in the time series. This is detailed in the comments.
@@ -34,7 +34,7 @@ def clean_data(value):
     return float(value) if isinstance(value, str) and value.isnumeric() else np.nan
 ```
 
-### rfr_model.py
+### 2) rfr_model.py
 I chose Random Forest for its ability to handle tabular data efficiently. Using 10-fold cross-validation:
 - I tuned hyperparameters like `n_estimators` (trees) and `max_depth` for balance between underfitting and overfitting.
 - Tracked computation time and loss (MSE) per fold:
@@ -49,8 +49,7 @@ for train_idx, val_idx in kf.split(X_train):
 
 
 
-### lstm_model.py
-#### 3. LSTM Model
+### 3) lstm_model.py
 I implemented an LSTM network to capture temporal dependencies in the weather data:
 - Used a time-series generator to prepare sequential input-output pairs.
 - Set up an LSTM architecture with 50 hidden units and trained it over 10 epochs:
@@ -66,7 +65,7 @@ model_lstm.fit(train_generator, epochs=10, validation_data=test_generator)
 
 
 
-### ensemble_&_evaluation.py
+### 4) ensemble_&_evaluation.py
 
 
 
@@ -80,9 +79,9 @@ To compare both models, I visualized:
 - Computation time: LSTM was slower due to its sequential architecture.
 
 
-### prediction_model.py
+### 5) prediction_model.py
 
-Room for improvement:
+### Room for improvement:
 1. Parallelism and Distributed Training for Ensemble Models to handle intensive computation. Hence, we can:
 - RFs is inherently parallelizable because each tree in the forest is built independently. Use scikit-learn and XGBoost to take advantage of multi-core processors and train multiple trees in parallel.
 - For LSTMs, TensorFlow supports distributed training across multiple GPUs or machines, processing larger data in less time.
