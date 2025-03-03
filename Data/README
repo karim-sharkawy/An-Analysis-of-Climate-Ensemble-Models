@@ -1,1 +1,37 @@
+I downloaded the data files from NOAA's Local Climatological Data (LCD) [site](https://www.ncei.noaa.gov/cdo-web/datatools/lcd) specifically focused on [West Lafayette](https://www.ncei.noaa.gov/cdo-web/datasets/LCD/stations/WBAN:14835/detail), Indiana. I downloaded the climate change indicator data from [Copernicus](https://cds.climate.copernicus.eu/cdsapp#!/search?type=dataset) [(CO2 Levels)](https://cds.climate.copernicus.eu/cdsapp#!/dataset/satellite-carbon-dioxide?tab=overview) [(Climate Indices)](https://cds.climate.copernicus.eu/cdsapp#!/dataset/sis-extreme-indices-cmip6?tab=overview) (GFDL-ESM4 (USA) Model and SSP3-7.0 for aerosol emissions) [(global temperature anomalies)](https://cds.climate.copernicus.eu/cdsapp#!/dataset/seasonal-postprocessed-single-levels?tab=overview). Need data on (NOx levels, other important aerosols, heat wave data, etc)
 
+Naturally, it's important to read the [Dataset Documentation](https://www.ncei.noaa.gov/pub/data/cdo/documentation/LCD_documentation.pdf) before working with the data to understand how to deal with different values. For further understanding, please read NOAA's [GSOM Summary](https://www.ncei.noaa.gov/pub/data/cdo/documentation/GSOM_documentation.pdf).
+
+#### Data Preparation 
+The dataset required careful preprocessing to handle missing and non-numeric values. I:
+- Dropped irrelevant columns based on a threshold of non-null values.
+- Filled missing values using a *window-based mean* approach to preserve temporal relationships in the time series. This is detailed in the comments.
+```
+def compute_window_mean(df, col, idx, window_size):
+    start_idx = max(0, idx - window_size)
+    end_idx = min(len(df), idx + window_size + 1)
+    
+    window_values = df[col].iloc[start_idx:end_idx].dropna()
+    return window_values.mean() if not window_values.empty else np.nan
+
+def fill_missing_values(df, exclude_cols, window_size=10):
+    df_filled = df.copy()
+    
+    for col in df.columns:
+        if col not in exclude_cols and pd.api.types.is_numeric_dtype(df[col]):
+            for idx in df[df[col].isna()].index:
+                mean_value = compute_window_mean(df, col, idx, window_size)
+                if pd.isna(mean_value):
+                    mean_value = df[col].mean()  # Fallback to column mean
+                df_filled.at[idx, col] = mean_value
+
+    return df_filled
+```
+- Replaced specific character codes (`'T'` for trace precipitation, `'M'` for missing values) with meaningful values or NaN (shown below).
+
+```python
+def clean_data(value):
+    if value == 'T': return 0.0025  # Trace value
+    elif value in ['s', 'M', '*', '']: return np.nan
+    return float(value) if isinstance(value, str) and value.isnumeric() else np.nan
+```
