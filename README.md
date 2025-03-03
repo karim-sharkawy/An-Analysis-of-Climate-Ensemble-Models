@@ -1,4 +1,4 @@
-#### Overview: An Ensemble of Random Forest and LSTM Models on Climate Data with Consideration of Climate Change
+# An Ensemble of Random Forest and LSTM Models on Climate Data with Consideration of Climate Change
 
 A coding project which uses machine learning and hourly data from NOAA’s Local Climatological Data (LCD) for West Lafayette (1973–2024) to predict temperatures using an ensemble model of Random Forest Regression (RFR or RF) and Long-Short-Term Memory (LSTM) models while incorporating climate change indicators. My primary goal was to develop a machine learning model to predict yearly climate patterns using historical weather data while accounting for climate change effects. My secondary goal was then to enhance that model's accuracy with external climate data. 
 
