@@ -1,6 +1,5 @@
-"""
-prediction_model.ipynb
-"""
+### prediction_model
+
 
 import joblib
 from keras.models import load_model

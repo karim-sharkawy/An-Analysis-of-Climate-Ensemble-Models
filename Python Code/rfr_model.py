@@ -1,6 +1,4 @@
-"""
-RFR_model
-"""
+### RFR_model
 
 import os
 import pandas as pd
@@ -73,7 +71,7 @@ y = df_klima['HourlyDryBulbTemperature']
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size = 0.2, random_state=42)
 
 param_grid = {
-    'model__n_estimators': [50, 100, 200, 500],  # number of trees
+    'model__n_estimators': [50, 100, 200, 250],  # number of trees
     'model__max_depth': [None, 10, 20, 30],  # tree depth
     'model__min_samples_split': [2, 5, 10],  # min samples required to split a node
     'model__min_samples_leaf': [1, 2, 4],  # min samples per leaf
@@ -81,14 +79,14 @@ param_grid = {
 } # quicker than GridSearchCV
 
 pipeline_rfr = Pipeline([
-    ('preprocessor', preprocessor_rfr), # already preprocessed, but just for consistency
+    ('preprocessor', SimpleImputer(strategy='mean')), # already preprocessed, but just for consistency
     ('model', RandomForestRegressor(random_state=42))
 ])
 
 random_search = RandomizedSearchCV(
     pipeline_rfr,
     param_distributions=param_grid,
-    n_iter=20,  # Number of random combinations to try
+    n_iter=4,  # Number of random combinations to try
     cv=5,  # 5-fold cross-validation
     scoring='neg_mean_squared_error',
     verbose=2,
@@ -105,15 +103,15 @@ rmse = mse ** 0.5
 r2 = r2_score(y_test, y_pred)
 
 print(f"Best Parameters: {random_search.best_params_}")
-print(f"MSE: {mse:.4f}, RMSE: {rmse:.4f}, R² Score: {r2:.4f}")
+print(f"MSE: {mse:.4f}, RMSE: {rmse:.4f}, R Squared Score: {r2:.4f}")
 
 """Using GridSearchCV to refine model performance based on RandomizedSearchCV results"""
 
 param_grid = {
-    'model__n_estimators': [180, 200, 220],  # Adjust around the best n_estimators
-    'model__max_depth': [8, 10, 12],  # Fine-tuning tree depth
-    'model__min_samples_split': [2, 4, 6],  # More refined values for node splitting
-    'model__min_samples_leaf': [1, 2, 3]  # Fine-tuning minimum samples per leaf
+    'model__n_estimators': [80, 100, 120],
+    'model__max_depth': [18, 20, 22],  # tree depth
+    'model__min_samples_split': [8, 10, 12],  #  node splitting
+    'model__min_samples_leaf': [1, 2, 3]
 } # refined hyperparameter grid
 
 pipeline_rfr = Pipeline([

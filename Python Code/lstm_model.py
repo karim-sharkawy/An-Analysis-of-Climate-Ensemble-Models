@@ -1,6 +1,4 @@
-"""
-LSTM_model.ipynb
-"""
+### LSTM_model
 
 import os
 import pandas as pd
@@ -8,6 +6,7 @@ import numpy as np
 import joblib # Saving RF model
 import matplotlib.pyplot as plt  # Plot feature importance
 
+!pip install keras-tuner
 from tensorflow.keras.models import load_model  # Loads a saved Keras model
 from tensorflow.keras.models import Sequential  # Defines a sequential (layer-stacked) neural network
 from tensorflow.keras.layers import LSTM, Dropout, Dense # LSTM for sequential learning, Dense for output layers
@@ -39,6 +38,10 @@ rfr_model_path = "/content/drive/My Drive/Colab Notebooks/Ensemble Climate Model
 best_rfr = joblib.load(rfr_model_path)
 
 """Performing feature selection to input into the LSTM model for time-dependent predictions and improve model accuracy"""
+
+X = df_klima.drop(columns=['HourlyDryBulbTemperature'])
+y = df_klima['HourlyDryBulbTemperature']
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size = 0.2, random_state=42)
 
 feature_importances = best_rfr.named_steps['model'].feature_importances_ # extracting features
 feature_names = X.columns

@@ -35,34 +35,79 @@ def clean_data(value):
 ```
 
 ### 2) rfr_model.py
-I chose Random Forest for its ability to handle tabular data efficiently. Using 10-fold cross-validation:
-- I tuned hyperparameters like `n_estimators` (trees) and `max_depth` for balance between underfitting and overfitting.
-- Tracked computation time and loss (MSE) per fold:
+The code sets up a machine learning pipeline to train and evaluate a Random Forest Regression (RFR) model using climate data. The data is first loaded from a CSV file stored on Google Drive, with the 'DATE' column processed as a datetime object and set as the index. Features that are highly correlated with others are removed to avoid multicollinearity, which can negatively affect the model’s performance. After preprocessing, the data is split into training and testing sets, and a pipeline is created that includes imputation of missing values and scaling of features. The hyperparameters of the Random Forest model are fine-tuned using `RandomizedSearchCV`, a more efficient method than `GridSearchCV`, which explores different combinations of model parameters through cross-validation.
 
-```python
-kf = KFold(n_splits=10, shuffle=True, random_state=42)
-for train_idx, val_idx in kf.split(X_train):
-    pipeline_rf.fit(X_train.iloc[train_idx], y_train.iloc[train_idx])
-    y_pred = pipeline_rf.predict(X_train.iloc[val_idx])
-    mse = mean_squared_error(y_train.iloc[val_idx], y_pred)
+Once the model is trained, its performance is evaluated using metrics such as Mean Squared Error (MSE), Root Mean Squared Error (RMSE), and R² score. The process is followed by further refinement of the model's hyperparameters using `GridSearchCV`, which narrows the search space to optimize the model’s performance further. The final model is saved to disk using `joblib` for future predictions. The code includes steps to ensure compatibility with Google Colab environments, such as mounting Google Drive and specifying the correct file paths. Additionally, careful handling of the feature selection process, hyperparameter tuning, and model evaluation ensures the model is both robust and efficient.
+
 ```
+# Creating the pipeline for preprocessing and model training
+pipeline_rfr = Pipeline([
+    ('preprocessor', SimpleImputer(strategy='mean')),  # Handling missing values
+    ('model', RandomForestRegressor(random_state=42))  # Random Forest model
+])
 
+# RandomizedSearchCV for hyperparameter tuning
+random_search = RandomizedSearchCV(
+    pipeline_rfr,
+    param_distributions=param_grid,
+    n_iter=4,  # Number of random combinations to try
+    cv=5,  # 5-fold cross-validation
+    scoring='neg_mean_squared_error',
+    verbose=2,
+    n_jobs=-1  # Use all available CPU cores
+)
+
+# Fit the model
+random_search.fit(X_train, y_train)
+
+# Save the best model
+joblib.dump(random_search.best_estimator_, rfr_model_path)
+```
 
 
 ### 3) lstm_model.py
-I implemented an LSTM network to capture temporal dependencies in the weather data:
-- Used a time-series generator to prepare sequential input-output pairs.
-- Set up an LSTM architecture with 50 hidden units and trained it over 10 epochs:
+The code builds and trains an LSTM (Long Short-Term Memory) model for climate prediction using a dataset loaded from Google Drive. The dataset is preprocessed, including date handling, feature selection with a pre-trained Random Forest model, and scaling of selected features. The top features identified by the Random Forest model are used as inputs to the LSTM, and additional feature engineering steps like creating moving averages and daily averages are applied to smooth the data and reduce noise. After feature engineering, the data is split into training and testing sets, and time-series data generators are used to prepare the data for the LSTM model. This step is crucial for handling the sequential nature of the data and feeding it into the LSTM network.
 
-```python
-model_lstm = Sequential([
-    LSTM(50, activation='relu', input_shape=(time_steps, X_train.shape[1])),
-    Dense(1)
-])
-model_lstm.compile(optimizer='adam', loss='mse')
-model_lstm.fit(train_generator, epochs=10, validation_data=test_generator)
+The LSTM model is built using Keras, with two LSTM layers and dropout layers to prevent overfitting. The model is trained on the prepared time-series data using early stopping to halt training if validation loss does not improve for a set number of epochs. For hyperparameter tuning, the code uses `kerastuner`'s Bayesian Optimization to optimize model parameters like the number of units in the LSTM layers, dropout rates, and learning rates. Once the best model is found, it is evaluated on the test data, and the root mean square error (RMSE) is calculated to assess model performance. Finally, the trained model is saved to disk for future use.
+
 ```
+# Building the LSTM model with dropout layers and tuning hyperparameters
+model_lstm = Sequential([
+    LSTM(50, activation='relu', return_sequences=True, input_shape=(time_steps, X_train_scaled.shape[1])),
+    Dropout(0.2),
+    LSTM(30, activation='relu'),
+    Dropout(0.2),
+    Dense(1)  # Output layer for regression
+])
 
+# Compile the model
+model_lstm.compile(optimizer='adam', loss='mse')
+
+# Early stopping callback
+early_stop = EarlyStopping(monitor='val_loss', patience=5, restore_best_weights=True)
+
+# Train the LSTM model with time-series generators
+history = model_lstm.fit(
+    train_generator,
+    epochs=50,
+    validation_data=test_generator,
+    callbacks=[early_stop]
+)
+
+# Hyperparameter tuning with Bayesian Optimization
+tuner = BayesianOptimization(
+    build_model,
+    objective='val_loss',  # Minimize validation loss
+    max_trials=10,  # Number of trials
+    executions_per_trial=3,  # Number of executions for each trial
+    directory='tuner_output',
+    project_name='lstm_rf_tuning'
+)
+
+tuner.search(train_generator, epochs=50, validation_data=test_generator, callbacks=[early_stop])
+best_model = tuner.get_best_models()[0]
+best_model.evaluate(test_generator)  # Evaluate the best model
+```
 
 
 ### 4) ensemble_&_evaluation.py
