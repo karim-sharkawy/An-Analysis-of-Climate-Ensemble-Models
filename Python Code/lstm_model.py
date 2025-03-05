@@ -43,19 +43,17 @@ X = df_klima.drop(columns=['HourlyDryBulbTemperature'])
 y = df_klima['HourlyDryBulbTemperature']
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size = 0.2, random_state=42)
 
-feature_importances = best_rfr.named_steps['model'].feature_importances_ # extracting features
-feature_names = X.columns
+# Extract feature names from the fitted pipeline
+feature_names = best_rfr.named_steps['preprocessor'].get_feature_names_out()
+feature_importances = best_rfr.named_steps['model'].feature_importances_
 
+# Ensure their lengths match
+if len(feature_names) != len(feature_importances):
+    raise ValueError(f"Mismatch: {len(feature_names)} feature names vs. {len(feature_importances)} importances")
+
+# Create DataFrame
 feature_importance_df = pd.DataFrame({'Feature': feature_names, 'Importance': feature_importances})
 feature_importance_df = feature_importance_df.sort_values(by='Importance', ascending=False)
-
-plt.figure(figsize=(10, 5))
-plt.barh(feature_importance_df['Feature'], feature_importance_df['Importance'], color='skyblue')
-plt.xlabel("Feature Importance")
-plt.ylabel("Features")
-plt.title("Random Forest Feature Importance")
-plt.gca().invert_yaxis()
-plt.show()
 
 """Using the most important features as input for the LSTM model"""
 
@@ -95,10 +93,9 @@ def prepare_lstm_data(df, top_features, time_aggregation='D'):
     df_lstm['day_of_week'] = df.index.dayofweek
     df_lstm['month'] = df.index.month
 
-    # Moving Averages (for smoother trends)
-    df_lstm['3hr_avg'] = df_lstm[top_features].rolling(window=3).mean()
-    df_lstm['12hr_avg'] = df_lstm[top_features].rolling(window=12).mean()
-    df_lstm['24hr_avg'] = df_lstm[top_features].rolling(window=24).mean()
+    # Moving Averages (for smoother trends) - Apply rolling mean per feature
+    for feature in top_features:
+        df_lstm[f'{feature}_24hr_avg'] = df_lstm[feature].rolling(window=24, min_periods=1).mean()
 
     # Aggregation to reduce noise (e.g., daily averages)
     df_lstm = df_lstm.resample(time_aggregation).mean()
@@ -150,30 +147,27 @@ early_stop = EarlyStopping(monitor='val_loss', patience=5, restore_best_weights=
 # Train LSTM
 history = model_lstm.fit(
     train_generator,
-    epochs=50,
+    epochs=15,
     validation_data=test_generator,
     callbacks=[early_stop]
 )
 
 """Hyperparameter Tuning"""
 
-# Function to build the model
 def build_model(hp):
     model = Sequential()
 
     model.add(LSTM(units=hp.Int('units_1', min_value=50, max_value=200, step=50),
                    activation='relu',
                    return_sequences=True,
-                   input_shape=(time_steps, X_train_selected.shape[1]))) # units
-    model.add(Dropout(hp.Float('dropout_1', min_value=0.1, max_value=0.5, step=0.1))) # dropouts
+                   input_shape=(time_steps, X_train_scaled.shape[1])))  # Ensure correct feature count
+    model.add(Dropout(hp.Float('dropout_1', min_value=0.1, max_value=0.5, step=0.1)))
 
     model.add(LSTM(units=hp.Int('units_2', min_value=30, max_value=100, step=30),
                    activation='relu'))
     model.add(Dropout(hp.Float('dropout_2', min_value=0.1, max_value=0.5, step=0.1)))
 
     model.add(Dense(1))  # Output layer
-
-    learning_rate = hp.Float('learning_rate', min_value=1e-5, max_value=1e-2, sampling='log') # learning rate
 
     model.compile(optimizer='adam', loss='mse')
 
@@ -183,17 +177,17 @@ def build_model(hp):
 tuner = BayesianOptimization(
     build_model,
     objective='val_loss',  # Objective to minimize
-    max_trials=10,  # Number of hyperparameter combinations to try
+    max_trials=3,  # Number of hyperparameter combinations to try
     executions_per_trial=3,  # Number of executions for each trial
     directory='tuner_output',
     project_name='lstm_rf_tuning'
-)
+) # experiment with these within your context!
 
 early_stop = EarlyStopping(monitor='val_loss', patience=5) # to prevent overfitting
 
 tuner.search(
     train_generator,
-    epochs=50,
+    epochs=15, # experiment with this!
     validation_data=test_generator,
     callbacks=[early_stop]
 )
@@ -203,8 +197,14 @@ best_model.evaluate(test_generator) # Evaluate the best model on the test data
 
 """Evaluation & Saving"""
 
-y_pred = model_lstm.predict(test_generator)
-rmse = mean_squared_error(y_test[time_steps:], y_pred, squared=False)
+y_pred = best_model.predict(test_generator)
+
+# Get the correct length of y_test for comparison
+y_test_actual = np.array(y_test_lstm[len(y_test_lstm) - len(y_pred):])  # Match lengths
+
+# Compute RMSE
+mse = mean_squared_error(y_test_actual, y_pred)
+rmse = mse ** 0.5
 print(f"Test RMSE: {rmse:.4f}")
 
 lstm_model_path = '/content/drive/My Drive/Colab Notebooks/Ensemble Climate Model/Models/lstm_climate_model.h5'
