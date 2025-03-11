@@ -18,3 +18,4 @@ I used Python 3.10.12 on Google Colab with the following libraries:
 4) TensorFlow/Keras 2.15.0
 5) Matplotlib 3.7.1
 6) Joblib 1.4.2
+7) 0.46.0
