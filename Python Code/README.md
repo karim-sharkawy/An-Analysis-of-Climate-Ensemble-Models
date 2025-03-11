@@ -1,5 +1,8 @@
 # Description of each script (in order)
 
+### 0) ensemble_climate_model.py
+All the code in one big file. This is preffered over running each file seperately.
+
 ### 1) data_cleaning.py 
 The dataset required careful preprocessing to handle missing and non-numeric values. I:
 - Dropped irrelevant columns based on a threshold of non-null values.
