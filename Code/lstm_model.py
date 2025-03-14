@@ -1,4 +1,4 @@
-### LSTM_model
+### LSTM model
 
 import os
 import pandas as pd
@@ -24,7 +24,7 @@ from sklearn.feature_selection import SelectFromModel  # Selects important featu
 from google.colab import drive # Feel free to use whatever environment
 drive.mount('/content/drive') # Make sure to remove google.colab and drive mounts and change paths
 
-csv_path = '/content/drive/My Drive/Colab Notebooks/Ensemble Climate Model/Data/climate_data.csv'
+csv_path = '/content/drive/My Drive/Colab Notebooks/Ensemble Climate Model/Data/climate_data_preprocessed.csv'
 df_klima = pd.read_csv(csv_path)
 
 # Need to make the date the index everytime :)
@@ -34,88 +34,21 @@ df_klima.sort_index(inplace=True) # Sort DF by date
 
 df_klima.head(3)
 
+"""# LSTM"""
+
 rfr_model_path = "/content/drive/My Drive/Colab Notebooks/Ensemble Climate Model/Models/random_forest_climate_model.pkl"
 best_rfr = joblib.load(rfr_model_path)
-
-"""Performing feature selection to input into the LSTM model for time-dependent predictions and improve model accuracy"""
-
-X = df_klima.drop(columns=['HourlyDryBulbTemperature'])
-y = df_klima['HourlyDryBulbTemperature']
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size = 0.2, random_state=42)
-
-# Extract feature names from the fitted pipeline
-feature_names = best_rfr.named_steps['preprocessor'].get_feature_names_out()
-feature_importances = best_rfr.named_steps['model'].feature_importances_
-
-# Ensure their lengths match
-if len(feature_names) != len(feature_importances):
-    raise ValueError(f"Mismatch: {len(feature_names)} feature names vs. {len(feature_importances)} importances")
-
-# Create DataFrame
-feature_importance_df = pd.DataFrame({'Feature': feature_names, 'Importance': feature_importances})
-feature_importance_df = feature_importance_df.sort_values(by='Importance', ascending=False)
-
-"""Using the most important features as input for the LSTM model"""
-
-# Select top features BEFORE scaling
-n_top_features = 3
-top_features = feature_importance_df['Feature'].head(n_top_features).values
-
-# Subset only the top features
-X_train_selected = X_train[top_features]
-X_test_selected = X_test[top_features]
-
-# Now scale only the selected features
-scaler = StandardScaler()
-X_train_scaled = scaler.fit_transform(X_train_selected)
-X_test_scaled = scaler.transform(X_test_selected)
-
-print(f"Selected top features: {top_features}")
-
-"""Feature engineering: creating daily averages"""
-
-def prepare_lstm_data(df, top_features, time_aggregation='D'):
-    """
-    Prepares the dataset for LSTM by applying feature engineering to only the selected features.
-
-    Args:
-    df (pd.DataFrame): The original dataframe with a DateTime index.
-    top_features (list): The selected top features from RF.
-    time_aggregation (str): Aggregation level (default is 'D' for daily averages).
-
-    Returns:
-    pd.DataFrame: Transformed dataframe for LSTM.
-    """
-    df_lstm = df[top_features].copy()
-
-    # Feature Engineering
-    df_lstm['hour'] = df.index.hour
-    df_lstm['day_of_week'] = df.index.dayofweek
-    df_lstm['month'] = df.index.month
-
-    # Moving Averages (for smoother trends) - Apply rolling mean per feature
-    for feature in top_features:
-        df_lstm[f'{feature}_24hr_avg'] = df_lstm[feature].rolling(window=24, min_periods=1).mean()
-
-    # Aggregation to reduce noise (e.g., daily averages)
-    df_lstm = df_lstm.resample(time_aggregation).mean()
-
-    return df_lstm
-
-# Apply feature engineering only to LSTM data
-df_lstm_ready = prepare_lstm_data(df_klima, top_features)
-
-print(df_lstm_ready.head())
 
 """Passing selected features into LSTM model"""
 
 # Ensure target variable is also aggregated the same way
-y_lstm = df_klima['HourlyDryBulbTemperature'].resample('D').mean()
+y_lstm = df_klima['HourlyDryBulbTemperature']
 
 # Train-test split after feature engineering
-train_size = int(0.8 * len(df_lstm_ready))
-X_train_lstm, X_test_lstm = df_lstm_ready.iloc[:train_size], df_lstm_ready.iloc[train_size:]
+train_size = int(0.8 * len(df_klima))
+X_train_lstm, X_test_lstm = df_klima.iloc[:train_size], df_klima.iloc[train_size:]
 y_train_lstm, y_test_lstm = y_lstm.iloc[:train_size], y_lstm.iloc[train_size:]
+
 
 # Standardize only after feature selection & aggregation
 scaler = StandardScaler()

@@ -1,23 +1,26 @@
-### RFR_model
+# RFR model
 
+import glob
 import os
 import pandas as pd
 import numpy as np
-import joblib # Saving RF model
-import matplotlib.pyplot as plt  # Plot feature importance, loss curves, etc.
+import joblib # saving RFR model
 
-from sklearn.model_selection import train_test_split  # Splits data into training and testing sets
-from sklearn.model_selection import RandomizedSearchCV  # Efficient hyperparameter tuning with randomized search, less resource-intensive
-from sklearn.model_selection import GridSearchCV  # Exhaustive hyperparameter tuning in a refined range
-from sklearn.preprocessing import StandardScaler  # Standardizes features to improve model performance
-from sklearn.pipeline import Pipeline  # Combines preprocessing steps and model training into one workflow
-from sklearn.impute import SimpleImputer  # Handles missing data by filling with mean/median/etc.
-from sklearn.ensemble import RandomForestRegressor  # Random forest model for predicting continuous values
-from sklearn.metrics import mean_squared_error, r2_score # evaluating model performance
-from sklearn.feature_selection import SelectFromModel  # Selects important features based on model output
+from sklearn.model_selection import train_test_split  # training and testing sets
+from sklearn.model_selection import RandomizedSearchCV  # efficient hyperparameter tuning with randomized search
+from sklearn.model_selection import GridSearchCV  # hyperparameter tuning in a refined range
+from sklearn.preprocessing import StandardScaler  # standardize features
+from sklearn.pipeline import Pipeline  # combines preprocessing steps and model training into one workflow
+from sklearn.impute import SimpleImputer  # handle missing data
+from sklearn.ensemble import RandomForestRegressor  # RFR
+from sklearn.linear_model import LinearRegression # for meta model
+from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score # evaluating model performance
+from sklearn.feature_selection import SelectFromModel  # selecting important features
 
-from google.colab import drive # Feel free to use whatever environment
-drive.mount('/content/drive') # Make sure to remove google.colab and drive mounts and change paths
+from google.colab import drive
+drive.mount('/content/drive')
+
+"""# Feature Importance"""
 
 csv_path = '/content/drive/My Drive/Colab Notebooks/Ensemble Climate Model/Data/climate_data.csv'
 df_klima = pd.read_csv(csv_path)
@@ -27,9 +30,7 @@ df_klima['DATE'] = pd.to_datetime(df_klima['DATE'], format='ISO8601')
 df_klima.set_index('DATE', inplace=True)
 df_klima.sort_index(inplace=True) # Sort DF by date
 
-df_klima.head(3)
-
-"""Removing highly correlated features using correlation-based feature selection before training the RF model. This reduces the noise and preventing multicollinearity, which can negatively affect model performance"""
+"""Removing highly correlated features to reduce noise and preventing multicollinearity"""
 
 corr_matrix = df_klima.corr(method='pearson', numeric_only=True)
 
@@ -63,12 +64,59 @@ for column in df_klima.columns:
 df_klima = df_klima.drop(columns=columns_to_drop)
 print(f'Dropped columns: {columns_to_drop}')
 
-"""Finding the best Random Forest Regression (RFR) Model using RandomizedSearchCV"""
+# Define new file path for preprocessed data
+preprocessed_csv_path = os.path.splitext(csv_path)[0] + "_preprocessed.csv"
+
+# Save the cleaned dataset
+df_klima.to_csv(preprocessed_csv_path)
+
+print(f"Preprocessed dataset saved to: {preprocessed_csv_path}")
+
+df_klima.head()
+
+# Define input file path
+csv_path = '/content/drive/My Drive/Colab Notebooks/Ensemble Climate Model/Data/climate_data_preprocessed.csv'
+
+# Load dataset
+df_klima = pd.read_csv(csv_path)
+df_klima['DATE'] = pd.to_datetime(df_klima['DATE'], format='ISO8601')
+df_klima.set_index('DATE', inplace=True)
+df_klima.sort_index(inplace=True)
+
+"""Feature importance on a temporary RFR"""
 
 X = df_klima.drop(columns=['HourlyDryBulbTemperature'])
 y = df_klima['HourlyDryBulbTemperature']
 
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size = 0.2, random_state=42)
+
+# Train a temporary RFR to get feature importance
+temp_rfr = RandomForestRegressor(n_estimators=100, random_state=42)
+temp_rfr.fit(X_train, y_train)
+
+# Get feature importance scores
+feature_importances = temp_rfr.feature_importances_
+
+# Select top N features (you can tweak the threshold)
+feature_names = X_train.columns  # Store original feature names
+important_features = np.argsort(feature_importances)[-3:]  # Selecting top 3 features
+
+# Extract the names of the top features
+top_feature_names = feature_names[important_features]  # Use the indices to get the column names
+print(f"Selected top features: {top_feature_names}")
+
+# Reduce dataset to only these features
+X_train_selected = X_train[top_feature_names]  # Use column names to select features
+X_test_selected = X_test[top_feature_names]
+
+# Now our train and test datasets are refined further using feature importance!
+X_train = X_train_selected
+X_test = X_test_selected
+
+"""# RFR
+
+Finding the best Random Forest Regression (RFR) Model using RandomizedSearchCV
+"""
 
 param_grid = {
     'model__n_estimators': [50, 100, 200, 250],  # number of trees
@@ -107,11 +155,13 @@ print(f"MSE: {mse:.4f}, RMSE: {rmse:.4f}, R Squared Score: {r2:.4f}")
 
 """Using GridSearchCV to refine model performance based on RandomizedSearchCV results"""
 
+keys = list(random_search.keys())
+
 param_grid = {
-    'model__n_estimators': [80, 100, 120],
-    'model__max_depth': [18, 20, 22],  # tree depth
-    'model__min_samples_split': [8, 10, 12],  #  node splitting
-    'model__min_samples_leaf': [1, 2, 3]
+    'model__n_estimators': [random_search[keys[0]]*0.8, random_search[keys[0]], random_search[keys[0]]*1.2],
+    'model__max_depth': [random_search[keys[4]]*0.8, random_search[keys[4]], random_search[keys[4]]*1.2],  # tree depth
+    'model__min_samples_split': [random_search[keys[1]] - 1, random_search[keys[1]], random_search[keys[1]]*2],  #  node splitting
+    'model__min_samples_leaf': [random_search[keys[2]] - 0.5, random_search[keys[2]], random_search[keys[2]]*2]
 } # refined hyperparameter grid
 
 pipeline_rfr = Pipeline([
@@ -135,17 +185,6 @@ grid_search.fit(X_train, y_train)
 
 best_rfr = grid_search.best_estimator_
 print(f"Best Parameters: {grid_search.best_params_}")
-
-"""Evaluation & Saving"""
-
-y_pred = best_rfr.predict(X_test)
-mse = mean_squared_error(y_test, y_pred)
-rmse = mse ** 0.5
-r2 = r2_score(y_test, y_pred)
-
-print(f"Test MSE: {mse:.4f}")
-print(f"Test RMSE: {rmse:.4f}")
-print(f"Test R Squared Score: {r2:.4f}")
 
 rfr_model_path = '/content/drive/My Drive/Colab Notebooks/Ensemble Climate Model/Models/random_forest_climate_model.pkl'
 joblib.dump(best_rfr, rfr_model_path) # saving the model
