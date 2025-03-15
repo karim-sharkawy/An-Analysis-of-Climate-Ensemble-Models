@@ -1,12 +1,12 @@
 # Description of each script (in order)
 
-### 0) ensemble_climate_model.py
-All the code in one big file. This is preffered over running each file seperately.
+### ensemble_climate_model.py
+All the code in one big file, I prefer this over running each file seperately.
 
 ### 1) data_cleaning.py 
 The dataset required careful preprocessing to handle missing and non-numeric values. I:
 - Dropped irrelevant columns based on a threshold of non-null values.
-- Filled missing values using a *window-based mean* approach to preserve temporal relationships in the time series. This is detailed in the comments.
+- Filled missing values using a window-based mean approach to preserve temporal relationships in the time series. This is detailed in the comments.
 ```
 def compute_window_mean(df, col, idx, window_size):
     start_idx = max(0, idx - window_size)
