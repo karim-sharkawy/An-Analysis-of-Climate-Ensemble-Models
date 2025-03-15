@@ -1,6 +1,6 @@
 # Analysis & Discussion of the Model Results
 
-## Results:
+### Results:
 Baseline Model RMSE: 19.8886, MAE: 16.8117, R²: -0.0000  
 Random Forest RMSE: 17.4401, MAE: 14.1926, R²: 0.2311  
 LSTM RMSE: 1.9114, MAE: 1.2865, R²: 0.9902  
