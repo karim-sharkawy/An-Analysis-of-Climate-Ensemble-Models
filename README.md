@@ -19,3 +19,6 @@ I used Python 3.10.12 on Google Colab with the following libraries:
 5) Matplotlib 3.7.1
 6) Joblib 1.4.2
 7) 0.46.0
+
+# Results
+This is dicussed much further in the "Results & Visualizations" folder, but here is a summary. The LSTM model outperforms all other models, achieving the lowest RMSE and MAE, along with an R² of 0.99, indicating exceptional predictive accuracy. This model significantly improves over the baseline, reducing RMSE by 90.39% and MAE by 92.35%. The Random Forest model also shows improvement over the baseline, with a 12.31% reduction in RMSE and 15.58% reduction in MAE, but its lower R² of 0.23 suggests potential underfitting. The Meta-Model Ensemble, combining Random Forest and LSTM predictions, failed to improve upon the baseline, indicating that the ensemble approach did not leverage the individual model strengths effectively. Overall, the LSTM model stands out as the most effective, while the Random Forest and ensemble models require further tuning or more advanced techniques to improve performance.
