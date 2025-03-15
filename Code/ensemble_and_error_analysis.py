@@ -39,10 +39,8 @@ model_lstm = load_model(lstm_model_path, custom_objects={'mse': MeanSquaredError
 Evaluation
 """
 
-# Simple Baseline: Predict the mean of training labels
-baseline_pred = np.full_like(y_test, y_train.mean())
+baseline_pred = np.full_like(y_test, y_train.mean()) # baseline: predicting mean
 
-# Compute RMSE for Baseline
 baseline_mse = mean_squared_error(y_test, baseline_pred)
 baseline_rmse = baseline_mse ** 0.5
 baseline_mae = mean_absolute_error(y_test, baseline_pred)
@@ -63,19 +61,91 @@ lstm_rmse = lstm_mse ** 0.5
 lstm_mae = mean_absolute_error(y_test_lstm_actual, lstm_pred)
 lstm_r2 = r2_score(y_test_lstm_actual, lstm_pred)
 
-# Print Comparison
+# Printing comparison
 print(f"Baseline Model RMSE: {baseline_rmse:.4f}, MAE: {baseline_mae:.4f}, R²: {baseline_r2:.4f}")
 print(f"Random Forest RMSE: {rf_rmse:.4f}, MAE: {rf_mae:.4f}, R²: {rf_r2:.4f}")
 print(f"LSTM RMSE: {lstm_rmse:.4f}, MAE: {lstm_mae:.4f}, R²: {lstm_r2:.4f}")
 
+"""Using Meta-Model to make ensemble because both models capture different patterns"""
+
+rf_model = RandomForestRegressor(n_estimators=100, random_state=42)
+rf_model.fit(X_train, y_train)
+
+print("Random Forest Model initialized and trained.")
+
+min_length = min(len(rf_pred), len(lstm_pred))
+rf_pred = rf_pred[:min_length]
+lstm_pred = lstm_pred[:min_length]
+
+# Prepare ensemble
+X_meta_train = np.column_stack((rf_pred, lstm_pred))  # stacking RF & LSTM predictions
+y_meta_train = y_test[time_steps:]
+
+meta_model = LinearRegression() # train linear regression as Meta-Model
+meta_model.fit(X_meta_train, y_meta_train)
+
+final_pred_meta = meta_model.predict(X_meta_train) # generate ensemble predictions
+
+meta_mse = mean_squared_error(y_meta_train, final_pred_meta)
+meta_rmse = meta_mse ** 0.5
+meta_mae = mean_absolute_error(y_meta_train, final_pred_meta)
+meta_r2 = r2_score(y_meta_train, final_pred_meta)
+
+ensemble_model_path = '/content/drive/My Drive/Colab Notebooks/Ensemble Climate Model/Models/ensemble_meta_model.pkl'
+joblib.dump(meta_model, ensemble_model_path)
+
+"""Comparisons"""
+
+# Function to adjust R squared scores
+def adjust_r2_score(score):
+    if score == 0:
+        return 0
+    elif score <= -100.00:
+      return 0 # 2 out of 4 were 0.00, so the result would be a very large number
+    return score
+
+# comparing to Baseline for each model in %
+
+# For RMSE and MAE, lower is better. For R squared, higher is better.
+rf_rmse_percentage_improvement = ((baseline_rmse - rf_rmse) / baseline_rmse) * 100
+lstm_rmse_percentage_improvement = ((baseline_rmse - lstm_rmse) / baseline_rmse) * 100
+meta_rmse_percentage_improvement = ((baseline_rmse - meta_rmse) / baseline_rmse) * 100
+
+rf_mae_percentage_improvement = ((baseline_mae - rf_mae) / baseline_mae) * 100
+lstm_mae_percentage_improvement = ((baseline_mae - lstm_mae) / baseline_mae) * 100
+meta_mae_percentage_improvement = ((baseline_mae - meta_mae) / baseline_mae) * 100
+
+# Apply the adjustment to R squared scores
+rf_r2_percentage_improvement = adjust_r2_score(((rf_r2 - baseline_r2) / baseline_r2) * 100)
+lstm_r2_percentage_improvement = adjust_r2_score(((lstm_r2 - baseline_r2) / baseline_r2) * 100)
+meta_r2_percentage_improvement = adjust_r2_score(((meta_r2 - baseline_r2) / baseline_r2) * 100)
+
+print(f"Baseline Model RMSE: {baseline_rmse:.4f}, MAE: {baseline_mae:.4f}, R squared: {baseline_r2:.4f}")
+print(f"Random Forest RMSE: {rf_rmse:.4f}, MAE: {rf_mae:.4f}, R squared: {rf_r2:.4f}")
+print(f"LSTM RMSE: {lstm_rmse:.4f}, MAE: {lstm_mae:.4f}, R squared: {lstm_r2:.4f}")
+print(f"Meta-Model Ensemble RMSE: {meta_rmse:.4f}, MAE: {meta_mae:.4f}, R squared:{meta_r2:.4f}")
+
+# Print improvements over the baseline in percentages
+print(f"\n Random Forest Improvement over Baseline (RMSE): {rf_rmse_percentage_improvement:.2f}%")
+print(f"LSTM Improvement over Baseline (RMSE): {lstm_rmse_percentage_improvement:.2f}%")
+print(f"Meta-Model Ensemble Improvement over Baseline (RMSE): {meta_rmse_percentage_improvement:.2f}%")
+
+print(f"\n Random Forest Improvement over Baseline (MAE): {rf_mae_percentage_improvement:.2f}%")
+print(f"LSTM Improvement over Baseline (MAE): {lstm_mae_percentage_improvement:.2f}%")
+print(f"Meta-Model Ensemble Improvement over Baseline (MAE): {meta_mae_percentage_improvement:.2f}%")
+
+print(f"\n Random Forest Improvement over Baseline (R squared): {rf_r2_percentage_improvement:.2f}%")
+print(f"LSTM Improvement over Baseline (R squared): {lstm_r2_percentage_improvement:.2f}%")
+print(f"Meta-Model Ensemble Improvement over Baseline (R squared): {meta_r2_percentage_improvement:.2f}%")
+
 """Visualization improvements of models compared to baseline"""
 
-###
-rmse_values = [baseline_rmse, rf_rmse, lstm_rmse]
-model_names = ['Baseline', 'Random Forest', 'LSTM']
+### RMSE
+rmse_values = [baseline_rmse, rf_rmse, lstm_rmse, meta_rmse]
+model_names = ['Baseline', 'Random Forest', 'LSTM', 'Ensemble']
 
 plt.figure(figsize=(8, 5))
-plt.bar(model_names, rmse_values, color=['gray', 'orange', 'blue']) # bar plot
+plt.bar(model_names, rmse_values, color=['gray', 'orange', 'blue', 'green']) # bar plot
 
 plt.xlabel("Model")
 plt.ylabel("RMSE")
@@ -88,12 +158,11 @@ for i, v in enumerate(rmse_values):
 
 plt.show()
 
-###
-mae_values = [baseline_mae, rf_mae, lstm_mae]
-model_names = ['Baseline', 'Random Forest', 'LSTM']
+### MAE
+mae_values = [baseline_mae, rf_mae, lstm_mae, meta_mae]
 
 plt.figure(figsize=(8, 5))
-plt.bar(model_names, mae_values, color=['gray', 'orange', 'blue']) # bar plot
+plt.bar(model_names, mae_values, color=['gray', 'orange', 'blue', 'green']) # bar plot
 
 plt.xlabel("Model")
 plt.ylabel("RMSE")
@@ -105,12 +174,11 @@ for i, v in enumerate(mae_values):
 
 plt.show()
 
-###
-r2_values = [baseline_r2, rf_r2, lstm_r2]
-model_names = ['Baseline', 'Random Forest', 'LSTM']
+### R2
+r2_values = [baseline_r2, rf_r2, lstm_r2, meta_r2]
 
 plt.figure(figsize=(8, 5))
-plt.bar(model_names, r2_values, color=['gray', 'orange', 'blue']) # bar plot
+plt.bar(model_names, r2_values, color=['gray', 'orange', 'blue', 'green']) # bar plot
 
 plt.xlabel("Model")
 plt.ylabel("RMSE")
@@ -119,61 +187,6 @@ plt.ylim(0, max(r2_values) * 1.2)
 
 for i, v in enumerate(r2_values):
     plt.text(i, v + 0.02 * max(r2_values), f"{v:.2f}", ha='center', fontsize=12)
-
-plt.show()
-
-"""Using Meta-Model because both models capture different patterns"""
-
-rf_model = RandomForestRegressor(n_estimators=100, random_state=42)
-rf_model.fit(X_train, y_train)
-
-print("Random Forest Model initialized and trained.")
-
-min_length = min(len(rf_pred), len(lstm_pred))
-rf_pred = rf_pred[:min_length]
-lstm_pred = lstm_pred[:min_length]
-
-# Prepare Meta-Model Training Data
-X_meta_train = np.column_stack((rf_pred, lstm_pred))  # Stack RF & LSTM Predictions
-y_meta_train = y_test[time_steps:]  # Target variable
-
-# Train Linear Regression as Meta-Model
-meta_model = LinearRegression()
-meta_model.fit(X_meta_train, y_meta_train)
-
-# Generate Final Predictions Using Meta-Model
-final_pred_meta = meta_model.predict(X_meta_train)
-
-# Evaluate Meta-Model Ensemble
-meta_mse = mean_squared_error(y_meta_train, final_pred_meta)
-meta_rmse = meta_mse ** 0.5
-print(f"Meta-Model Ensemble RMSE: {meta_rmse:.4f}")
-
-# MAE
-meta_mae = mean_absolute_error(y_meta_train, final_pred_meta)
-print(f"Meta-Model Ensemble MAE: {meta_mae:.4f}")
-
-# R²
-meta_r2 = r2_score(y_meta_train, final_pred_meta)
-print(f"Meta-Model Ensemble R²: {meta_r2:.4f}")
-
-"""RMSE Improvement Line Plot"""
-
-# RMSE Improvement Over Baseline
-models = ['Baseline', 'Random Forest', 'LSTM', 'Meta-Model Ensemble']
-rmse_values = [baseline_rmse, rf_rmse, lstm_rmse, meta_rmse]
-
-plt.figure(figsize=(8, 5))
-plt.plot(models, rmse_values, marker='o', linestyle='-', color='dodgerblue', linewidth=2, markersize=8)
-
-plt.xlabel("Model")
-plt.ylabel("RMSE")
-plt.title("Model Performance Improvement (Lower RMSE is Better)")
-plt.grid(True)
-
-# Annotate RMSE values
-for i, v in enumerate(rmse_values):
-    plt.text(i, v + 0.02 * max(rmse_values), f"{v:.2f}", ha='center', fontsize=12)
 
 plt.show()
 
